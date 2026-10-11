@@ -1,0 +1,15 @@
+name: test
+on: [push, pull_request]
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: git clone --depth 1 https://github.com/kk7ds/chirp.git vendor/chirp
+      - run: pytest -q
+      - run: ham-fleet --config examples/demo validate
+      - run: ham-fleet --config examples/demo build

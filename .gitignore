@@ -1,0 +1,10 @@
+# Personal config (callsign, backups, your plan) - keep it out of the public repo
+my-fleet/
+# build output
+out/
+*.egg-info/
+__pycache__/
+.pytest_cache/
+.venv/
+# CHIRP checkout (cloned, not committed)
+vendor/

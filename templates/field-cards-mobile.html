@@ -1,0 +1,101 @@
+<title>Channel Card</title>
+<style>
+/* Phone layout: sticky search + group chips, one channel per row, guide as collapsible sections.
+   System fonts only, so it looks right offline. */
+:root{
+  --bg:#f4f5f2; --card:#ffffff; --ink:#1b2124; --muted:#5b666b; --rule:#d9dedc;
+  --chip:#e8ecea; --accent:#c4501b; --rx:#5f707a;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Roboto Mono",monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#101416; --card:#1a1f22; --ink:#e6eae8; --muted:#9ba6aa; --rule:#2c3438;
+  --chip:#252d31; --accent:#f08350; --rx:#93a4ae; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#101416; --card:#1a1f22; --ink:#e6eae8; --muted:#9ba6aa; --rule:#2c3438;
+  --chip:#252d31; --accent:#f08350; --rx:#93a4ae; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.4 var(--sans)}
+header.top{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 14px 8px;
+  padding-top:calc(10px + env(safe-area-inset-top,0px));border-bottom:1px solid var(--rule)}
+.title{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px}
+.title h1{font-size:20px;margin:0;font-weight:800;letter-spacing:.01em;white-space:nowrap}
+.title h1 em{font-style:normal;color:var(--accent)}
+.title span{font-size:13px;color:var(--muted);text-align:right;min-width:0}
+#q{width:100%;font:inherit;font-size:17px;padding:10px 12px;border:1px solid var(--rule);border-radius:10px;
+  background:var(--card);color:var(--ink)}
+#q:focus{outline:2px solid var(--accent);outline-offset:0}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:8px 0 2px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chips a{flex:none;font-size:14px;font-weight:600;color:var(--ink);text-decoration:none;background:var(--chip);
+  padding:6px 11px;border-radius:999px;white-space:nowrap}
+.chips a:focus-visible{outline:2px solid var(--accent)}
+main{padding:6px 10px 40px;max-width:640px;margin:0 auto}
+section.grp{margin-top:14px;scroll-margin-top:150px}
+section.grp>h2{font-size:14px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:0 4px 6px;
+  display:flex;justify-content:space-between}
+section.grp>h2 small{font-family:var(--mono);letter-spacing:0;color:var(--accent);font-size:13px}
+ul.chs{list-style:none;margin:0;padding:0;background:var(--card);border:1px solid var(--rule);border-radius:12px;overflow:hidden}
+li.ch{display:grid;grid-template-columns:2.6em minmax(0,1fr) auto;gap:4px 10px;align-items:center;
+  padding:10px 12px;border-top:1px solid var(--rule)}
+li.ch:first-child{border-top:none}
+.num{font-family:var(--mono);font-weight:700;font-size:20px;color:var(--accent);text-align:right}
+.mid{min-width:0}
+.mid b{display:block;font-size:17px;font-weight:650;overflow-wrap:anywhere}
+.mid small{display:block;font-size:14px;color:var(--muted);overflow-wrap:anywhere}
+.rt{text-align:right}
+.fq{display:block;font-family:var(--mono);font-size:19px;font-weight:700;font-variant-numeric:tabular-nums}
+.meta{display:block;font-family:var(--mono);font-size:14px;color:var(--muted);white-space:nowrap}
+.rxo{display:inline-block;font-family:var(--sans);font-size:12px;font-weight:700;letter-spacing:.05em;color:var(--rx);
+  border:1px solid var(--rx);border-radius:4px;padding:0 4px}
+.empty{display:none;text-align:center;color:var(--muted);padding:30px 10px}
+.guide{margin-top:22px}
+.guide>h2{font-size:14px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:0 4px 6px}
+details{background:var(--card);border:1px solid var(--rule);border-radius:12px;margin-bottom:8px;overflow:hidden}
+summary{font-weight:700;font-size:17px;padding:12px 14px;cursor:pointer;list-style:none;display:flex;justify-content:space-between}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";color:var(--accent);font-weight:800}
+details[open] summary::after{content:"–"}
+.gbody{padding:0 14px 12px;font-size:16px}
+.gbody p,.gbody li{margin:0 0 6px}
+.gbody ol,.gbody ul{padding-left:20px;margin:0}
+.gbody dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;margin:0}
+.gbody dt{font-weight:700;color:var(--accent)}
+.gbody dd{margin:0}
+.gbody .scroll{overflow-x:auto}
+.gbody table{border-collapse:collapse;font-size:14px;width:100%}
+.gbody th,.gbody td{border-bottom:1px solid var(--rule);padding:4px 6px;text-align:left;vertical-align:top}
+.gbody .callout{border-left:3px solid var(--accent);background:var(--chip);padding:8px 10px;border-radius:6px;margin-bottom:6px}
+.gbody kbd{font-family:var(--mono);font-size:14px;border:1px solid var(--rule);border-radius:4px;padding:0 4px;background:var(--chip)}
+.gbody sup,.meta sup{color:var(--accent)}
+.gbody .note{color:var(--muted);font-size:14px}
+.legend{font-size:13px;color:var(--muted);margin:10px 4px 0}
+footer{color:var(--muted);font-size:13px;text-align:center;margin-top:24px}
+</style>
+
+<header class="top">
+  <div class="title"><h1>Channel <em>card</em></h1><span>%%SUBTITLE%%</span></div>
+  <input id="q" type="search" placeholder="Search: channel, call, town, MHz" autocomplete="off" aria-label="Search channels">
+  <nav class="chips">%%CHIPS%%</nav>
+</header>
+<main>
+  <p class="legend">Shift −0.6 / +5 = repeater offset · "Tone" sent on TX · "TSQL" tone both ways · <span class="rxo">RX</span> receive only</p>
+  %%CHANNELS%%
+  <p class="empty" id="empty">No channels match.</p>
+  %%GUIDE%%
+  <footer>Generated by ham-fleet</footer>
+</main>
+<script>
+(function(){
+  var q=document.getElementById('q'), rows=[].slice.call(document.querySelectorAll('li.ch')),
+      grps=[].slice.call(document.querySelectorAll('section.grp')), empty=document.getElementById('empty');
+  q.addEventListener('input',function(){
+    var t=q.value.trim().toLowerCase(), any=false;
+    rows.forEach(function(r){var m=!t||r.getAttribute('data-q').indexOf(t)>=0; r.hidden=!m; if(m)any=true;});
+    grps.forEach(function(g){g.hidden=!g.querySelector('li.ch:not([hidden])');});
+    empty.style.display=any?'none':'block';
+  });
+})();
+</script>

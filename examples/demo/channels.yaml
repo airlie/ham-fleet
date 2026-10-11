@@ -1,0 +1,75 @@
+# Master channel list - the ONLY place channels are edited.
+#
+# Each group becomes a block on the channel card and (if dm32_zone is set) a zone on the DM32.
+# Channel fields:
+#   ch        channel/memory number - the same on every radio that can hold it
+#   name      long name (12 chars max: Mini, UV-32, UV-26, DM32)
+#   short     short name (7 chars max: UV-5R, TD-H3)
+#   freq      receive frequency, MHz
+#   duplex    "+" or "-" (repeater). Omit for simplex.
+#   offset    MHz (0.6 on 2 m, 5.0 on 70 cm, 1.6 on 220)
+#   tone_mode Tone (encode only) | TSQL (encode + decode) | DTCS
+#   tone      CTCSS tone (Hz) for Tone/TSQL;  dcs: DCS code for DTCS
+#   mode      FM (default) | NFM | AM
+#   power     High (default) | Low
+#   rx_only   true = transmit blocked (weather, marine, rail, air)
+#   scan_skip true = skipped while scanning
+#   note      free text (location etc.) - shown on the card
+# Group fields: id, title, tier (core|ext, default core), card (table|compact|air|none), dm32_zone
+# DEMO PLAN - a generic US starter set. Copy this folder to my-fleet/ and make it yours.
+# The two "EXAMPLE" repeaters are placeholders: replace them with real ones from RepeaterBook.
+groups:
+  - id: frs
+    title: FRS
+    card: compact
+    channels:
+      - {ch: 1, name: FRS 1, short: FRS1, freq: 462.5625, mode: NFM, power: Low}
+      - {ch: 2, name: FRS 2, short: FRS2, freq: 462.5875, mode: NFM, power: Low}
+      - {ch: 3, name: FRS 3, short: FRS3, freq: 462.6125, mode: NFM, power: Low}
+      - {ch: 4, name: FRS 4, short: FRS4, freq: 462.6375, mode: NFM, power: Low}
+      - {ch: 5, name: FRS 5, short: FRS5, freq: 462.6625, mode: NFM, power: Low}
+      - {ch: 6, name: FRS 6, short: FRS6, freq: 462.6875, mode: NFM, power: Low}
+      - {ch: 7, name: FRS 7, short: FRS7, freq: 462.7125, mode: NFM, power: Low}
+
+  - id: noaa
+    title: Weather
+    card: compact
+    channels:
+      - {ch: 36, name: NOAA 1, short: NOAA1, freq: 162.55, power: Low, rx_only: true}
+      - {ch: 37, name: NOAA 2, short: NOAA2, freq: 162.4, power: Low, rx_only: true}
+      - {ch: 38, name: NOAA 3, short: NOAA3, freq: 162.475, power: Low, rx_only: true}
+      - {ch: 39, name: NOAA 4, short: NOAA4, freq: 162.425, power: Low, rx_only: true}
+      - {ch: 40, name: NOAA 5, short: NOAA5, freq: 162.45, power: Low, rx_only: true}
+      - {ch: 41, name: NOAA 6, short: NOAA6, freq: 162.5, power: Low, rx_only: true}
+      - {ch: 42, name: NOAA 7, short: NOAA7, freq: 162.525, power: Low, rx_only: true}
+
+  - id: simplex
+    title: Ham simplex
+    card: compact
+    channels:
+      - {ch: 43, name: 2M CALL, short: 2MCALL, freq: 146.52}
+      - {ch: 44, name: 70CM CALL, short: 70CALL, freq: 446.0}
+
+  - id: local
+    title: Local repeaters
+    card: table
+    dm32_zone: Local Rptrs
+    channels:
+      - {ch: 50, name: EXAMPLE 2M, short: EX2M, freq: 146.94, duplex: '-', offset: 0.6, tone_mode: Tone, tone: 100.0, note: Placeholder - replace}
+      - {ch: 51, name: EXAMPLE 70CM, short: EX70, freq: 444.1, duplex: '+', offset: 5.0, tone_mode: TSQL, tone: 123.0, note: Placeholder - replace}
+
+  - id: marine
+    title: Marine (RX only)
+    card: compact
+    channels:
+      - {ch: 114, name: MAR 16, short: MAR16, freq: 156.8, power: Low, rx_only: true}
+      - {ch: 115, name: MAR 09, short: MAR09, freq: 156.45, power: Low, rx_only: true}
+
+  - id: aviation
+    title: Aviation (AM, RX only)
+    tier: ext
+    card: air
+    channels:
+      - {ch: 401, name: GUARD 121.5, short: GUARD, freq: 121.5, mode: AM, power: Low, rx_only: true, scan_skip: true, note: national}
+      - {ch: 402, name: AIR-AIR, short: AIRAIR, freq: 122.75, mode: AM, power: Low, rx_only: true, scan_skip: true, note: national}
+      - {ch: 403, name: MULTICOM, short: MULTI, freq: 122.9, mode: AM, power: Low, rx_only: true, scan_skip: true, note: national}

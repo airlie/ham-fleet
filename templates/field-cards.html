@@ -1,0 +1,112 @@
+<title>Channel Card</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: field-manual sheets — a channel card and a procedures card, two columns, each prints on Letter */
+:root{
+  --paper:#f6f7f4; --sheet:#ffffff; --ink:#1d2326; --muted:#5d686d; --rule:#d5dad8;
+  --band:#e9eeec; --accent:#c4501b; --rx:#6b7b85;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#121618; --sheet:#1a1f22; --ink:#e4e8e6; --muted:#9aa5a9; --rule:#2f373b;
+  --band:#232a2e; --accent:#ec7a45; --rx:#8fa0aa; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#121618; --sheet:#1a1f22; --ink:#e4e8e6; --muted:#9aa5a9; --rule:#2f373b;
+  --band:#232a2e; --accent:#ec7a45; --rx:#8fa0aa; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font:13px/1.45 var(--body);margin:0;padding-inline:16px;padding-block:20px 48px}
+.wrap{max-width:1100px;margin:0 auto;display:grid;gap:28px}
+nav{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-family:var(--display);font-size:15px;letter-spacing:.04em;text-transform:uppercase}
+nav a{color:var(--ink);text-decoration:none;border:1px solid var(--rule);padding:4px 10px;border-radius:3px;background:var(--sheet)}
+nav a:hover,nav a:focus-visible{border-color:var(--accent);outline:none}
+nav span{color:var(--muted);margin-right:4px}
+.sheet{background:var(--sheet);border:1px solid var(--rule);padding:22px 24px 26px;min-width:0}
+.mast{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:8px 24px;border-bottom:3px solid var(--ink);padding-bottom:8px;margin-bottom:14px}
+.mast h1{font-family:var(--display);font-weight:700;font-size:30px;line-height:1;margin:0;letter-spacing:.01em;text-transform:uppercase;text-wrap:balance}
+.mast h1 em{font-style:normal;color:var(--accent)}
+.mast .meta{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:right}
+.legend{display:flex;flex-wrap:wrap;gap:4px 18px;font-size:11.5px;color:var(--muted);margin:-4px 0 14px}
+.legend b{color:var(--ink);font-family:var(--mono);font-weight:500}
+.cols{columns:2 460px;column-gap:28px}
+.blk{break-inside:avoid;margin:0 0 14px;min-width:0}
+.blk h2{font-family:var(--display);font-weight:600;font-size:16px;letter-spacing:.06em;text-transform:uppercase;margin:0 0 4px;display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--ink);padding-bottom:2px}
+.blk h2 small{font-family:var(--mono);font-size:11px;letter-spacing:0;color:var(--accent);font-weight:500;align-self:flex-end}
+.scroll{overflow-x:auto}
+table.ch{width:100%;border-collapse:collapse;font-size:11.5px;font-variant-numeric:tabular-nums}
+table.ch th{font-family:var(--display);font-weight:600;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left;padding:2px 4px;border-bottom:1px solid var(--rule)}
+table.ch td{padding:2px 4px;border-bottom:1px solid var(--rule);vertical-align:baseline;white-space:nowrap}
+table.ch tbody tr:nth-child(even) td{background:var(--band)}
+td.n{font-family:var(--mono);font-weight:500;width:2.6em;text-align:right;color:var(--accent)}
+td.f,td.d,td.t{font-family:var(--mono)}
+td.nm{font-weight:600}
+.n7{display:block;font-family:var(--mono);font-weight:400;font-size:9.5px;color:var(--muted)}
+td.w{white-space:normal;color:var(--muted);font-size:11px}
+sup{font-size:8px;color:var(--accent);font-weight:600}
+.rxo{font-family:var(--display);font-size:10px;letter-spacing:.06em;color:var(--rx);border:1px solid var(--rx);padding:0 3px;border-radius:2px}
+ul.compact{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:1px 12px;font-size:11.5px}
+ul.compact li{border-bottom:1px solid var(--rule);padding:1px 0;display:flex;gap:6px;white-space:nowrap}
+ul.compact b{font-family:var(--mono);font-weight:500;color:var(--accent);min-width:2.2em;text-align:right}
+ul.compact .f{font-family:var(--mono);color:var(--muted);margin-left:auto}
+.note{font-size:11.5px;color:var(--muted);margin:4px 0 0}
+/* field guide */
+.guide h2{font-family:var(--display);font-weight:600;font-size:16px;letter-spacing:.06em;text-transform:uppercase;margin:0 0 6px;border-bottom:1px solid var(--ink);padding-bottom:2px}
+.guide p,.guide li{font-size:12px;margin:0 0 4px;max-width:65ch}
+.guide ol,.guide ul{margin:0;padding-left:18px}
+.guide .blk{margin-bottom:16px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:12px}
+.kv dt{font-family:var(--mono);font-weight:500;color:var(--accent);white-space:nowrap}
+.kv dd{margin:0}
+kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--rule);border-bottom-width:2px;border-radius:3px;padding:0 4px;background:var(--band)}
+.callout{border-left:3px solid var(--accent);background:var(--band);padding:6px 10px;font-size:12px}
+.callout b{font-family:var(--display);letter-spacing:.05em;text-transform:uppercase;font-size:13px}
+.fill{display:inline-block;min-width:9em;border-bottom:1px solid var(--ink)}
+table.mx{width:100%;border-collapse:collapse;font-size:11.5px}
+table.mx th,table.mx td{border-bottom:1px solid var(--rule);padding:2px 4px;text-align:left;vertical-align:top}
+table.mx th{font-family:var(--display);font-weight:600;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+table.mx td:first-child{font-weight:600;white-space:nowrap}
+.y{color:var(--accent);font-weight:600}
+@media (max-width:520px){.mast h1{font-size:24px}.sheet{padding:16px 14px}.mast .meta{text-align:left}}
+@media print{
+  @page{size:letter;margin:.35in}
+  :root{--paper:#fff;--sheet:#fff;--ink:#111;--muted:#444;--rule:#bbb;--band:#eee;--accent:#b2410f;--rx:#555}
+  body{padding:0;font-size:11px;background:#fff}
+  nav{display:none}
+  .wrap{gap:0;max-width:none}
+  .sheet{border:none;padding:0;break-after:page}
+  .cols{columns:2;column-gap:.25in}
+  table.ch,ul.compact{font-size:9.6px}
+  .guide p,.guide li,.kv,table.mx,.callout{font-size:10.2px}
+  .mast h1{font-size:24px}
+  .blk{margin-bottom:9px}
+}
+</style>
+
+<div class="wrap">
+<nav><span>Jump to</span><a href="#channels">Channel card</a><a href="#air">Air band</a></nav>
+
+<section class="sheet" id="channels">
+  <header class="mast"><h1>Channel <em>card</em></h1><div class="meta">Generated by ham-fleet · same numbers on every radio</div></header>
+  <div class="legend">
+    <span><b>+0.6 / −0.6 / +5</b> repeater offset (MHz)</span>
+    <span><b>123.0</b> tone sent on TX</span>
+    <span><b>123.0<sup>T</sup></b> tone both ways (TSQL)</span>
+    <span><b>D315</b> DCS code</span>
+    <span><span class="rxo">RX</span> receive only, TX blocked</span>
+    <span>small grey name = short name for radios with 6–8 character displays</span>
+  </div>
+  <div class="cols">%%CORE%%</div>
+</section>
+
+<section class="sheet" id="air">
+  <header class="mast"><h1>Air <em>band</em></h1><div class="meta">AM · receive only · AM-capable radios</div></header>
+  <div class="cols"><div class="blk"><h2>Aviation <small>AM · RX only</small></h2><div class="scroll">%%AIR%%</div>
+  <p class="note">Verify airport frequencies on airnav.com or the FAA Chart Supplement before relying on them.</p></div></div>
+</section>
+</div>
+<!--
+  Copy this file to <your config>/templates/field-cards.html to customise it:
+  add your callsign, a field guide, trip plans, etc. %%CORE%% and %%AIR%% are filled in by `ham-fleet cards`.
+-->
