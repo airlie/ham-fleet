@@ -331,3 +331,37 @@ def test_latest_download_by_name_pin_and_extra(tmp_path):
     assert fleet.extra_file(r).name == "sats.img"
     r.base = "2026-10-01.img"                        # pinned
     assert fleet.base_file(r).name == "2026-10-01.img"
+
+
+def test_qso_log_and_qsl_cards(tmp_path):
+    from ham_fleet.cards import write_qso
+    files = write_qso(PLAN, tmp_path, {"callsign": "n0call", "name": "Pat", "qth": "Anytown, KS", "grid": "EM17"})
+    names = {f.name for f in files}
+    assert names == {"QSO_Log.html", "QSO_Log_Mobile.html", "QSL_Cards.html"}
+    log = (tmp_path / "QSO_Log.html").read_text()
+    assert "N0CALL" in log and log.count('<td class="n">') == 24 and "%%" not in log
+    qsl = (tmp_path / "QSL_Cards.html").read_text()
+    assert qsl.count('class="card"') == 3 and "N<em>0</em>CALL" in qsl and "Anytown, KS" in qsl
+    mob = (tmp_path / "QSO_Log_Mobile.html").read_text()
+    assert '"callsign": "N0CALL"' in mob and '"44":["446","70CM CALL"]' in mob and "%%" not in mob
+
+
+def test_qso_without_operator_block(tmp_path):
+    from ham_fleet.cards import write_qso
+    write_qso(PLAN, tmp_path, {})
+    assert "N0CALL" in (tmp_path / "QSL_Cards.html").read_text()
+
+
+def test_theme_accent_applies_to_every_printable(tmp_path):
+    from ham_fleet.cards import theme_css, write_cards, write_mobile, write_qso
+    theme = {"accent": "ba0c2f"}
+    css = theme_css(theme)
+    assert "--accent:#BA0C2F" in css and "prefers-color-scheme:dark" in css and "@media print" in css
+    files = write_cards(PLAN, tmp_path, theme=theme) + [write_mobile(PLAN, tmp_path, theme=theme)] \
+        + write_qso(PLAN, tmp_path, {"callsign": "N0CALL"}, theme=theme)
+    for f in files:
+        t = f.read_text()
+        assert 'id="ham-fleet-theme"' in t and t.index("ham-fleet-theme") < t.index("</body>"), f.name
+    assert theme_css({}) == "" and theme_css(None) == ""
+    with pytest.raises(SystemExit, match="not a #RRGGBB"):
+        theme_css({"accent": "red"})

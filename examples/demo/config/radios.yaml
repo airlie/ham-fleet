@@ -5,6 +5,17 @@
 
 card_subtitle: "N0CALL"  # optional: shown on the channel cards
 
+# Optional: accent color for all printables (#RRGGBB). Default is a burnt orange.
+# theme:
+#   accent: "#1F6FB2"
+
+# Optional: you, for the QSO log and QSL cards
+operator:
+  callsign: N0CALL
+  name: Pat
+  qth: Anytown, KS
+  grid: EM17
+
 # Optional: put radio-downloads/ or output/ somewhere other than next to config/ (relative to the home folder).
 # paths:
 #   downloads: "/mnt/g/Radio Downloads"

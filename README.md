@@ -50,7 +50,7 @@ ham-fleet settings my-uv5r                  # settings you can pin, with current
 ham-fleet build                             # build everything
 ham-fleet build --only my-uv5r --dry-run -v
 ham-fleet build --clean                     # remove old generated files first
-ham-fleet cards --pdf                       # printable channel card + a phone version (PDF: pip install -e ".[pdf]" && playwright install chromium)
+ham-fleet cards --pdf                       # channel cards, QSO log, QSL cards (PDF: pip install -e ".[pdf]" && playwright install chromium)
 ham-fleet rb-check ~/Downloads/rb_*.csv     # compare your repeaters with RepeaterBook exports
 ```
 
@@ -71,7 +71,7 @@ my-fleet/                            ← "home" (git-ignored: it's yours, not th
 └── output/            OUTPUT: generated, safe to delete (`build --clean`)
     ├── my-uv5r/UV-5R_Plan.img + .csv     one folder per radio id
     ├── dm32/DM32_Plan.neonplug
-    ├── cards/                            printable + phone channel cards
+    ├── cards/                            channel cards, QSO log, QSL cards (see "Printables")
     └── channel-map.csv
 ```
 
@@ -135,6 +135,15 @@ groups:
 
 ```yaml
 card_subtitle: "N0CALL"               # optional, shown on the channel cards
+theme:                                # optional: accent color for every printable
+  accent: "#1F6FB2"                   #   (accent_dark: optional dark-mode screen color)
+operator:                             # optional: you, for the QSO log and QSL cards
+  callsign: N0CALL
+  name: Pat
+  qth: Anytown, KS
+  county: Example                     # optional
+  grid: EM17
+  dmr_id: 1234567                     # optional
 paths:                                # optional; see "Folders" above
   downloads: "/mnt/nas/radio-downloads"
 radios:
@@ -165,6 +174,22 @@ radios:
     tiers: [core, ext]
     extra: {from_image: satellites.img, start: 601, named_only: true, scan_skip: true}   # in radio-downloads/sat-radio/
 ```
+
+### Printables
+
+`ham-fleet cards` writes these to `output/cards/` (add `--pdf` for print-ready PDFs):
+
+| File | What it is |
+|---|---|
+| `Fleet_Field_Cards.html` / `.pdf` | Printable channel card (Letter), plus your field guide if your template has one |
+| `Fleet_Field_Cards_Mobile.html` | Phone version: big type, search, jump to group, works offline |
+| `QSO_Log.html` / `.pdf` | Paper log sheet (Letter landscape, 24 contacts): UTC, call, MHz/channel, mode, RST, name, QTH, notes |
+| `QSO_Log_Mobile.html` | Phone log: type a contact, UTC time is added; enter a channel number and it fills in the frequency; exports CSV and ADIF (QRZ Logbook, LoTW) |
+| `QSL_Cards.html` / `.pdf` | QSL cards, 3.5 × 5.5 in, three per Letter page with cut lines |
+
+Your details come from the `operator:` block in radios.yaml, and `theme: {accent: "#RRGGBB"}` sets the accent color on all of them (dark mode on screen gets a lighter shade automatically; set `accent_dark` to choose it yourself). To restyle anything else, copy the file from `templates/` into `config/templates/` and edit it there.
+
+The phone log saves contacts in that browser on that phone only, so export after each outing.
 
 ### Radio settings
 

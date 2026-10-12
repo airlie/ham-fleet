@@ -256,12 +256,17 @@ def cmd_cards(args) -> int:
         if "aviation" in r.remap:
             air = int(r.remap["aviation"])
     for f in write_cards(plan, fleet.cards_out, pdf=args.pdf, tdh3_air_start=air,
-                         template=tpl if tpl.exists() else None):
+                         template=tpl if tpl.exists() else None, theme=fleet.theme):
         print(f"-> {f}")
     m = write_mobile(plan, fleet.cards_out, subtitle=fleet.card_subtitle, tdh3_air_start=air,
                      template=mtpl if mtpl.exists() else None,
-                     desktop_template=tpl if tpl.exists() else None)
+                     desktop_template=tpl if tpl.exists() else None, theme=fleet.theme)
     print(f"-> {m}")
+    from .cards import write_qso
+    for f in write_qso(plan, fleet.cards_out, fleet.operator, pdf=args.pdf, templates=tdir, theme=fleet.theme):
+        print(f"-> {f}")
+    if not fleet.operator.get("callsign"):
+        print("tip: add an `operator:` block (callsign, name, qth, grid) to radios.yaml for the QSO log and QSL cards")
     return 0
 
 
@@ -316,7 +321,7 @@ def main(argv=None) -> int:
     s.add_argument("--clean", action="store_true", help="delete old generated files for these radios first")
     s.set_defaults(fn=cmd_build)
 
-    s = sub.add_parser("cards", help="build the printable channel card and the phone version")
+    s = sub.add_parser("cards", help="build channel cards, QSO log sheets and QSL cards (printable + phone)")
     s.add_argument("--pdf", action="store_true", help="also make a PDF (needs Playwright)")
     s.set_defaults(fn=cmd_cards)
 

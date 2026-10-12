@@ -1,0 +1,68 @@
+<title>QSO Log %%CALL%%</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Printable paper log: one Letter page, landscape so the columns have room to write in. */
+:root{
+  --paper:#ffffff; --ink:#1b2124; --muted:#5b666b; --rule:#c9cfcd; --band:#f1f3f1; --accent:#c4501b;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--paper:#15191b;--ink:#e6eae8;--muted:#9ba6aa;--rule:#3a4347;--band:#1d2326;--accent:#f08350;color-scheme:dark}}
+:root[data-theme="dark"]{--paper:#15191b;--ink:#e6eae8;--muted:#9ba6aa;--rule:#3a4347;--band:#1d2326;--accent:#f08350;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:13px/1.35 var(--body);padding-inline:16px;padding-block:18px}
+.sheet{max-width:1050px;margin:0 auto}
+.mast{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:6px 20px;border-bottom:3px solid var(--ink);padding-bottom:6px}
+.mast h1{font-family:var(--display);font-weight:700;font-size:30px;line-height:1;margin:0;text-transform:uppercase;letter-spacing:.02em}
+.mast h1 em{font-style:normal;color:var(--accent)}
+.mast .who{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:right}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:4px 18px;margin:10px 0 8px;font-size:12px}
+.fields span{display:flex;gap:6px;align-items:flex-end;white-space:nowrap}
+.fields i{font-style:normal;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-size:10.5px}
+.fields b{flex:1;border-bottom:1px solid var(--ink);min-height:16px}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:760px;table-layout:fixed}
+th{font-family:var(--display);font-weight:600;font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);
+   text-align:left;padding:3px 5px;border-bottom:1.5px solid var(--ink)}
+td{border-bottom:1px solid var(--rule);height:27px;padding:0 5px;font-family:var(--mono);font-size:11px;color:var(--muted)}
+tbody tr:nth-child(even) td{background:var(--band)}
+td.n{width:2.2em;text-align:right;color:var(--accent);font-weight:500}
+th.rst,td.rst{text-align:center}
+td.n{text-align:right}
+.foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;margin-top:8px;font-size:11px;color:var(--muted)}
+.foot b{color:var(--ink);font-weight:500}
+@media print{
+  @page{size:letter landscape;margin:.35in}
+  :root{--paper:#fff;--ink:#111;--muted:#555;--rule:#bbb;--band:#f3f3f3;--accent:#b2410f}
+  body{padding:0}
+  .scroll{overflow:visible}
+  td{height:23px}
+}
+</style>
+<div class="sheet">
+  <header class="mast">
+    <h1>QSO <em>log</em></h1>
+    <div class="who">%%CALL%% · %%NAME%% · %%QTH%% · grid %%GRID%%</div>
+  </header>
+  <div class="fields">
+    <span><i>Date</i><b></b></span>
+    <span><i>Location / park</i><b></b></span>
+    <span><i>Radio</i><b></b></span>
+    <span><i>Power</i><b></b></span>
+    <span><i>Antenna</i><b></b></span>
+    <span><i>Page</i><b></b></span>
+  </div>
+  <div class="scroll">
+  <table>
+    <colgroup><col style="width:2.4em"><col style="width:5.5em"><col style="width:9em"><col style="width:8em"><col style="width:5em"><col style="width:3.6em"><col style="width:3.6em"><col style="width:8em"><col style="width:10em"><col></colgroup>
+    <thead><tr><th>#</th><th>UTC</th><th>Call</th><th>MHz / Ch</th><th>Mode</th><th class="rst">Sent</th><th class="rst">Rcvd</th><th>Name</th><th>QTH</th><th>Notes</th></tr></thead>
+    <tbody>%%ROWS%%</tbody>
+  </table>
+  </div>
+  <div class="foot">
+    <span><b>UTC</b> = Eastern Daylight + 4 h, Eastern Standard + 5 h</span>
+    <span><b>ID</b> every 10 minutes and at the end of each contact</span>
+    <span><b>RST</b> voice 59 · CW 599 · FM: "full quieting"</span>
+  </div>
+</div>

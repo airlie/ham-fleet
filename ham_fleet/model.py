@@ -119,6 +119,8 @@ class Fleet:
     paths: "Paths"
     radios: list[RadioDef]
     card_subtitle: str = ""
+    operator: dict = field(default_factory=dict)
+    theme: dict = field(default_factory=dict)
 
     @property
     def output_dir(self) -> Path:
@@ -189,7 +191,8 @@ def load_fleet(path: Path, paths: Optional["Paths"] = None, data: Optional[dict]
             extra=r.get("extra"), template_channel=r.get("template_channel"),
             settings=dict(r.get("settings") or {}),
         ))
-    return Fleet(paths=paths, radios=radios, card_subtitle=str(data.get("card_subtitle", "")))
+    return Fleet(paths=paths, radios=radios, card_subtitle=str(data.get("card_subtitle", "")),
+                 operator=dict(data.get("operator") or {}), theme=dict(data.get("theme") or {}))
 
 
 def channels_for(plan: Plan, radio: RadioDef) -> list[tuple[int, Channel]]:

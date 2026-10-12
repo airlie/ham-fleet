@@ -1,0 +1,161 @@
+<title>QSO Log %%CALL%%</title>
+<style>
+/* Phone log: quick-entry form on top, contacts below, export as CSV or ADIF (QRZ / LoTW import).
+   Saved in this browser only; export after each outing. System fonts so it works offline. */
+:root{
+  --bg:#f4f5f2; --card:#ffffff; --ink:#1b2124; --muted:#5b666b; --rule:#d9dedc; --chip:#e8ecea; --accent:#c4501b; --danger:#b42318;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Roboto Mono",monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101416;--card:#1a1f22;--ink:#e6eae8;--muted:#9ba6aa;--rule:#2c3438;--chip:#252d31;--accent:#f08350;--danger:#f97066;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#101416;--card:#1a1f22;--ink:#e6eae8;--muted:#9ba6aa;--rule:#2c3438;--chip:#252d31;--accent:#f08350;--danger:#f97066;color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.4 var(--sans)}
+main{max-width:640px;margin:0 auto;padding:12px 14px 40px;padding-top:calc(12px + env(safe-area-inset-top,0px))}
+h1{font-size:21px;margin:0 0 2px;font-weight:800}
+h1 em{font-style:normal;color:var(--accent)}
+.sub{color:var(--muted);font-size:14px;margin:0 0 12px}
+form{background:var(--card);border:1px solid var(--rule);border-radius:12px;padding:12px;display:grid;gap:10px;grid-template-columns:1fr 1fr}
+label{display:grid;gap:3px;font-size:13px;color:var(--muted);font-weight:600;min-width:0}
+label.wide{grid-column:1/-1}
+input,select{font:inherit;font-size:17px;height:46px;padding:9px 10px;border:1px solid var(--rule);border-radius:9px;background:var(--bg);color:var(--ink);width:100%;min-width:0}
+input:focus,select:focus{outline:2px solid var(--accent);outline-offset:0}
+#call{text-transform:uppercase;font-family:var(--mono);font-weight:700;font-size:20px;height:50px}
+.hint{font-size:12px;color:var(--muted);font-weight:400;min-height:1em}
+.row{display:flex;gap:8px;grid-column:1/-1}
+button{font:inherit;font-weight:700;border:none;border-radius:10px;padding:11px 14px;cursor:pointer;background:var(--chip);color:var(--ink)}
+button.primary{background:var(--accent);color:#fff;flex:1}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h2{font-size:14px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:20px 4px 6px;display:flex;justify-content:space-between}
+ul{list-style:none;margin:0;padding:0;background:var(--card);border:1px solid var(--rule);border-radius:12px;overflow:hidden}
+li{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:baseline;gap:2px 10px;padding:10px 12px;border-top:1px solid var(--rule)}
+li:first-child{border-top:none}
+li b{font-family:var(--mono);font-size:18px}
+li .t{font-family:var(--mono);font-size:14px;color:var(--muted);text-align:right}
+li small{grid-column:1/-1;color:var(--muted);font-size:14px;overflow-wrap:anywhere}
+li button{grid-column:3;grid-row:1;padding:2px 6px;font-size:14px;background:none;color:var(--muted)}
+.empty{padding:18px;text-align:center;color:var(--muted)}
+.tools{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.confirm{background:var(--card);border:1px solid var(--danger);border-radius:10px;padding:10px;margin-top:10px;font-size:15px}
+.confirm button.danger{background:var(--danger);color:#fff}
+.note{font-size:13px;color:var(--muted);margin-top:14px}
+#out{width:100%;min-height:90px;font:13px var(--mono);margin-top:8px;border:1px solid var(--rule);border-radius:8px;background:var(--card);color:var(--ink);padding:8px}
+</style>
+<main>
+  <h1>QSO <em>log</em></h1>
+  <p class="sub">%%CALL%% · %%NAME%% · %%GRID%%</p>
+  <form id="f" autocomplete="off">
+    <label class="wide">Call<input id="call" required placeholder="W1AW" inputmode="text" autocapitalize="characters"></label>
+    <label>MHz or channel<input id="freq" placeholder="146.520 or 51" inputmode="decimal"><span class="hint" id="fhint"></span></label>
+    <label>Mode<select id="mode"><option>FM</option><option>SSB</option><option>CW</option><option>DMR</option><option>FT8</option><option>AM</option></select></label>
+    <label>Sent<input id="sent" value="59" inputmode="numeric"></label>
+    <label>Rcvd<input id="rcvd" value="59" inputmode="numeric"></label>
+    <label>Name<input id="name"></label>
+    <label>QTH<input id="qth"></label>
+    <label class="wide">Notes<input id="notes"></label>
+    <div class="row"><button class="primary" type="submit">Log contact</button></div>
+  </form>
+  <h2><span>Contacts</span><span id="count"></span></h2>
+  <ul id="list"><li class="empty">No contacts yet.</li></ul>
+  <div class="tools">
+    <button type="button" id="csv">Download CSV</button>
+    <button type="button" id="adif">Download ADIF</button>
+    <button type="button" id="copy">Copy CSV</button>
+    <button type="button" id="clear">Clear log…</button>
+  </div>
+  <div class="confirm" id="confirm" hidden>Delete all <span id="n"></span> contacts from this phone? Export first.
+    <div class="tools"><button type="button" class="danger" id="yes">Delete all</button><button type="button" id="no">Keep</button></div></div>
+  <textarea id="out" hidden readonly aria-label="Export text"></textarea>
+  <p class="note">Times are logged in UTC automatically. The log is saved in this browser on this phone only: export it after each outing. ADIF imports into QRZ Logbook and LoTW (TQSL).</p>
+</main>
+<script>
+(function(){
+  var OP = %%OPERATOR_JSON%%, CH = %%CHANNELS_JSON%%, KEY = "ham-fleet-qso-" + OP.callsign;
+  var $ = function(id){return document.getElementById(id);};
+  var log = [];
+  try { log = JSON.parse(localStorage.getItem(KEY) || "[]"); } catch(e) { log = []; }
+  function save(){ try { localStorage.setItem(KEY, JSON.stringify(log)); } catch(e) {} }
+  function resolveFreq(v){
+    v = String(v || "").trim().toLowerCase().replace(/^ch\s*/, "");
+    if (!v) return {mhz:"", label:""};
+    var n = Number(v);
+    if (/^\d{1,4}$/.test(v) && CH[v]) return {mhz:CH[v][0], label:"Ch " + v + " " + CH[v][1]};
+    if (!isNaN(n) && n > 1) return {mhz:n.toFixed(4).replace(/0+$/,"").replace(/\.$/,""), label:""};
+    return {mhz:"", label:v};
+  }
+  function band(m){
+    m = Number(m); var B=[[1.8,2,"160m"],[3.5,4,"80m"],[5.3,5.41,"60m"],[7,7.3,"40m"],[10.1,10.15,"30m"],[14,14.35,"20m"],
+      [18.068,18.168,"17m"],[21,21.45,"15m"],[24.89,24.99,"12m"],[28,29.7,"10m"],[50,54,"6m"],[144,148,"2m"],[222,225,"1.25m"],[420,450,"70cm"]];
+    for (var i=0;i<B.length;i++) if (m>=B[i][0] && m<=B[i][1]) return B[i][2];
+    return "";
+  }
+  $("freq").addEventListener("input", function(){ var r = resolveFreq(this.value); $("fhint").textContent = r.label ? r.label + (r.mhz ? " · " + r.mhz : "") : ""; });
+  function render(){
+    var ul = $("list"); ul.innerHTML = "";
+    $("count").textContent = log.length ? log.length : "";
+    if (!log.length){ ul.innerHTML = '<li class="empty">No contacts yet.</li>'; return; }
+    log.slice().reverse().forEach(function(q, i){
+      var li = document.createElement("li");
+      var idx = log.length - 1 - i;
+      li.innerHTML = "<b></b><span class='t'></span><small></small><button type='button' aria-label='Delete'>✕</button>";
+      li.children[0].textContent = q.call;
+      li.children[1].textContent = q.date.slice(5) + " " + q.utc + "Z";
+      li.children[2].textContent = [q.mhz || q.ch, q.mode, q.sent + "/" + q.rcvd, q.name, q.qth, q.notes].filter(Boolean).join(" · ");
+      li.children[3].onclick = function(){ log.splice(idx, 1); save(); render(); };
+      ul.appendChild(li);
+    });
+  }
+  $("f").addEventListener("submit", function(e){
+    e.preventDefault();
+    var now = new Date(), r = resolveFreq($("freq").value);
+    log.push({ call: $("call").value.trim().toUpperCase(), date: now.toISOString().slice(0,10), utc: now.toISOString().slice(11,16),
+      mhz: r.mhz, ch: r.label, mode: $("mode").value, sent: $("sent").value.trim(), rcvd: $("rcvd").value.trim(),
+      name: $("name").value.trim(), qth: $("qth").value.trim(), notes: $("notes").value.trim() });
+    save(); render();
+    ["call","name","qth","notes"].forEach(function(id){ $(id).value = ""; });
+    $("call").focus();
+  });
+  function csvText(){
+    var head = ["date","utc","call","mhz","channel","mode","rst_sent","rst_rcvd","name","qth","notes"];
+    var esc = function(s){ s = String(s == null ? "" : s); return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; };
+    return [head.join(",")].concat(log.map(function(q){ return [q.date,q.utc,q.call,q.mhz,q.ch,q.mode,q.sent,q.rcvd,q.name,q.qth,q.notes].map(esc).join(","); })).join("\n") + "\n";
+  }
+  function adifText(){
+    var f = function(k, v){ v = String(v || ""); return v ? "<" + k + ":" + v.length + ">" + v + " " : ""; };
+    var out = "ham-fleet QSO log export\n" + f("ADIF_VER","3.1.4") + f("PROGRAMID","ham-fleet") + "<EOH>\n";
+    log.forEach(function(q){
+      var mode = q.mode, sub = "";
+      if (mode === "DMR"){ mode = "DIGITALVOICE"; sub = "DMR"; }
+      out += f("CALL", q.call) + f("QSO_DATE", q.date.replace(/-/g,"")) + f("TIME_ON", q.utc.replace(":","")) +
+        f("FREQ", q.mhz) + f("BAND", band(q.mhz)) + f("MODE", mode) + f("SUBMODE", sub) +
+        f("RST_SENT", q.sent) + f("RST_RCVD", q.rcvd) + f("NAME", q.name) + f("QTH", q.qth) +
+        f("COMMENT", [q.ch, q.notes].filter(Boolean).join(" ")) +
+        f("STATION_CALLSIGN", OP.callsign) + f("MY_GRIDSQUARE", OP.grid) + "<EOR>\n";
+    });
+    return out;
+  }
+  function download(name, text, type){
+    try {
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([text], {type: type}));
+      a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    } catch(e) {}
+    showText(text);   // also show it, in case this browser blocks downloads
+  }
+  function showText(t){ var o = $("out"); o.value = t; o.hidden = false; }
+  var stamp = function(){ return new Date().toISOString().slice(0,10); };
+  $("csv").onclick = function(){ download(OP.callsign + "-log-" + stamp() + ".csv", csvText(), "text/csv"); };
+  $("adif").onclick = function(){ download(OP.callsign + "-log-" + stamp() + ".adi", adifText(), "text/plain"); };
+  $("copy").onclick = function(){
+    var t = csvText();
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).catch(function(){ showText(t); });
+    else showText(t);
+  };
+  $("clear").onclick = function(){ $("n").textContent = log.length; $("confirm").hidden = false; };
+  $("no").onclick = function(){ $("confirm").hidden = true; };
+  $("yes").onclick = function(){ log = []; save(); render(); $("confirm").hidden = true; };
+  render();
+})();
+</script>
