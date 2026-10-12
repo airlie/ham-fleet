@@ -1,7 +1,8 @@
-# Personal config (callsign, backups, your plan) - keep it out of the public repo
+# Personal fleet folders (config, radio-downloads, output) - keep them out of the public repo
 my-fleet/
 # build output
 out/
+output/
 *.egg-info/
 __pycache__/
 .pytest_cache/

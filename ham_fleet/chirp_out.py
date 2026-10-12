@@ -2,7 +2,7 @@
 
 CHIRP isn't published on PyPI, so we load it from a source checkout:
   1. an importable `chirp` package, if already installed
-  2. $FLEET_CHIRP_PATH
+  2. $HAM_FLEET_CHIRP (or the older $FLEET_CHIRP_PATH)
   3. ./vendor/chirp next to this project
 """
 from __future__ import annotations
@@ -27,7 +27,7 @@ def chirp():
     try:
         import chirp  # noqa: F401
     except ImportError:
-        candidates = [os.environ.get("FLEET_CHIRP_PATH"),
+        candidates = [os.environ.get("HAM_FLEET_CHIRP"), os.environ.get("FLEET_CHIRP_PATH"),
                       str(Path(__file__).resolve().parent.parent / "vendor" / "chirp")]
         for p in candidates:
             if p and (Path(p) / "chirp" / "__init__.py").exists():
@@ -37,7 +37,7 @@ def chirp():
             raise SystemExit(
                 "CHIRP source not found. Run:\n"
                 "  git clone --depth 1 https://github.com/kk7ds/chirp.git vendor/chirp\n"
-                "or set FLEET_CHIRP_PATH to a CHIRP checkout.")
+                "or set HAM_FLEET_CHIRP to a CHIRP checkout.")
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     from chirp import chirp_common, directory
     from chirp.drivers import generic_csv
@@ -127,14 +127,16 @@ def _write_csv(feat, mems, path: Path) -> None:
             csv.writer(fh).writerows(rows)
 
 
-def build_chirp(plan: Plan, radio: RadioDef, backups: Path, outdir: Path, dry_run=False) -> BuildResult:
+def build_chirp(plan: Plan, radio: RadioDef, src: Path | None, outdir: Path, dry_run=False,
+                extra_src: Path | None = None) -> BuildResult:
+    """src = the radio download to start from (chirp-image); extra_src = image for `extra:`."""
     directory, cc, _ = chirp()
     warnings.simplefilter("ignore", DeprecationWarning)  # CHIRP's older drivers are noisy
     res = BuildResult(radio.id)
     if radio.kind == "chirp-image":
-        src = backups / radio.base
-        if not src.exists():
-            raise SystemExit(f"{radio.id}: backup image not found: {src}")
+        if src is None or not src.exists():
+            raise SystemExit(f"{radio.id}: no radio download found (save one in radio-downloads/{radio.id}/; "
+                             f"see `ham-fleet where`)")
         r = directory.get_radio_by_image(str(src))
         feat = r.get_features()
     else:
@@ -157,7 +159,9 @@ def build_chirp(plan: Plan, radio: RadioDef, backups: Path, outdir: Path, dry_ru
 
     if radio.extra and r is not None:
         ex = radio.extra
-        srcx = directory.get_radio_by_image(str(backups / ex["from_image"]))
+        if extra_src is None or not extra_src.exists():
+            raise SystemExit(f"{radio.id}: extra image not found: {extra_src}")
+        srcx = directory.get_radio_by_image(str(extra_src))
         lo, hi = srcx.get_features().memory_bounds
         nxt = int(ex["start"])
         top = feat.memory_bounds[1]

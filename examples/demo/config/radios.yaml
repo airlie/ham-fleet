@@ -1,9 +1,14 @@
-# DEMO fleet - works without any radio backups (CSV output only).
-# For real radios, use kind: chirp-image with `base:` pointing at a CHIRP backup of that radio,
-# so the built image keeps that radio's own settings. See README.md for every option.
+# DEMO fleet - works without any radio images (CSV output only).
+# For real radios use kind: chirp-image; the build starts from the latest CHIRP download in
+# radio-downloads/<radio id>/, so that radio's own settings and calibration carry over.
+# See README.md for every option.
 
-backups_dir: "."
-output_dir: "out"
+card_subtitle: "N0CALL"  # optional: shown on the channel cards
+
+# Optional: put radio-downloads/ or output/ somewhere other than next to config/ (relative to the home folder).
+# paths:
+#   downloads: "/mnt/g/Radio Downloads"
+#   output: "output"
 
 radios:
   # A 128-channel, VHF/UHF FM radio (UV-5R class): gets the core tier only.
@@ -32,22 +37,20 @@ radios:
       power: {Low: 1.0, High: 5.0}
       bands: [[108.0, 136.0], [136.0, 174.0], [400.0, 520.0]]
 
-  # Real radio from its own backup:
+  # Real radio, built from the latest download in radio-downloads/my-uv5r/ (e.g. 2026-10-11.img):
   # - id: my-uv5r
   #   label: UV-5R
   #   kind: chirp-image
-  #   base: "UV-5R/backup.img"
-  #   output: UV-5R_Plan
+  #   output: UV-5R_Plan       # optional file name, defaults to the radio id
   #   tiers: [core]
   #   settings:                # same names on every model (see README: Radio settings)
   #     voice_prompt: off
   #     key_beep: off
   #
-  # Baofeng DM32-UV via a NeonPlug export:
+  # Baofeng DM32-UV, built from the latest NeonPlug export in radio-downloads/dm32/:
   # - id: dm32
   #   label: DM32-UV
   #   kind: neonplug
-  #   base: "DM32/codeplug-export.neonplug"
   #   output: DM32_Plan
   #   tiers: [core]
   #   template_channel: "2m National Simp"

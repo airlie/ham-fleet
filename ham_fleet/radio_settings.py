@@ -1,7 +1,7 @@
 """Apply and list radio settings (voice prompts, beep, timers...) on CHIRP images.
 
 Uploading a CHIRP image writes the radio's settings as well as its channels, so settings changed
-on the radio after its backup was taken get reverted. Settings listed in radios.yaml are applied
+on the radio after the download it was built from get reverted. Settings listed in radios.yaml are applied
 on every build. Use the normalized names from settings_catalog.py (voice_prompt, key_beep, ...);
 anything else is treated as a raw CHIRP setting name.
 """

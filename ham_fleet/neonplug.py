@@ -44,11 +44,12 @@ def _zone_id() -> str:
     return f"zone-{int(time.time() * 1000)}-{rnd}"
 
 
-def build_neonplug(plan: Plan, radio: RadioDef, backups: Path, outdir: Path, dry_run=False) -> BuildResult:
+def build_neonplug(plan: Plan, radio: RadioDef, src: Path | None, outdir: Path, dry_run=False) -> BuildResult:
+    """src = the NeonPlug export to start from (latest by name in radio-downloads/<radio id>/)."""
     res = BuildResult(radio.id)
-    src = backups / radio.base
-    if not src.exists():
-        raise SystemExit(f"{radio.id}: NeonPlug export not found: {src}")
+    if src is None or not src.exists():
+        raise SystemExit(f"{radio.id}: no NeonPlug export found (save one in radio-downloads/{radio.id}/; "
+                         f"see `ham-fleet where`)")
     cp = read_neonplug(src)
     chans = cp["channels"]
     managed_names = {g.dm32_zone for g in plan.groups if g.dm32_zone}

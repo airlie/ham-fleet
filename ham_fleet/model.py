@@ -2,11 +2,15 @@
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
 import yaml
+
+if TYPE_CHECKING:
+    from .paths import Paths
 
 TONE_MODES = ("", "Tone", "TSQL", "DTCS")
 MODES = ("FM", "NFM", "AM")
@@ -107,12 +111,54 @@ class RadioDef:
     settings: dict = field(default_factory=dict)
 
 
+BASE_EXT = {"chirp-image": ".img", "neonplug": ".neonplug"}
+
+
 @dataclass
 class Fleet:
-    backups_dir: Path
-    output_dir: Path
+    paths: "Paths"
     radios: list[RadioDef]
     card_subtitle: str = ""
+
+    @property
+    def output_dir(self) -> Path:
+        return self.paths.output
+
+    def radio_out(self, radio: "RadioDef") -> Path:
+        """Each radio's files go in their own folder: output/<radio id>/"""
+        return self.paths.output / radio.id
+
+    @property
+    def cards_out(self) -> Path:
+        return self.paths.output / "cards"
+
+    def radio_downloads(self, radio: "RadioDef") -> Path:
+        return self.paths.downloads / radio.id
+
+    def extra_file(self, radio: "RadioDef") -> Optional[Path]:
+        if radio.extra and radio.extra.get("from_image"):
+            return self.radio_downloads(radio) / radio.extra["from_image"]
+        return None
+
+    def base_file(self, radio: "RadioDef") -> Optional[Path]:
+        """The download a build starts from: radio-downloads/<id>/<base> if pinned, else the latest one.
+
+        "Latest" means last by file name, so date-named files (2026-10-11.img) sort correctly and the
+        choice doesn't change when a sync or copy resets file times.
+
+        Returns None if the radio needs no image (chirp-csv) or none has been saved yet.
+        """
+        ext = BASE_EXT.get(radio.kind)
+        if not ext:
+            return None
+        d = self.radio_downloads(radio)
+        if radio.base:
+            return d / radio.base
+        if not d.is_dir():
+            return None
+        skip = {self.extra_file(radio)}
+        files = [f for f in d.iterdir() if f.is_file() and f.suffix.lower() == ext and f not in skip]
+        return max(files, key=lambda f: f.name) if files else None
 
     def radio(self, rid: str) -> RadioDef:
         for r in self.radios:
@@ -121,26 +167,29 @@ class Fleet:
         raise KeyError(f"no radio '{rid}' in radios.yaml (have: {', '.join(x.id for x in self.radios)})")
 
 
-def load_fleet(path: Path, backups: Optional[str] = None, output: Optional[str] = None) -> Fleet:
-    path = Path(path)
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    base = path.parent
-    bdir = backups or os.environ.get("FLEET_BACKUPS") or data.get("backups_dir", ".")
-    odir = output or data.get("output_dir", "out")
-    bpath = Path(bdir)
-    opath = Path(odir)
+def read_radios_yaml(path: Path) -> dict:
+    return yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
+
+
+def load_fleet(path: Path, paths: Optional["Paths"] = None, data: Optional[dict] = None) -> Fleet:
+    """Load radios.yaml. Builds start from the latest (by name) file in radio-downloads/<radio id>/ unless `base:` pins one."""
+    data = data if data is not None else read_radios_yaml(path)
+    if paths is None:   # standard layout around this radios.yaml: <home>/config/radios.yaml
+        from .paths import resolve
+        cfg = Path(path).resolve().parent
+        paths = resolve(home=str(cfg.parent), config=str(cfg), file_paths=data.get("paths"))
     radios = []
     for r in data["radios"]:
+        kind = r["kind"]
+        base = r.get("base")
         radios.append(RadioDef(
-            id=r["id"], label=r.get("label", r["id"]), kind=r["kind"], output=r["output"],
-            tiers=list(r.get("tiers", ["core"])), base=r.get("base"), groups=r.get("groups"),
+            id=r["id"], label=r.get("label", r["id"]), kind=kind, output=r.get("output", r["id"]),
+            tiers=list(r.get("tiers", ["core"])), base=base, groups=r.get("groups"),
             remap=dict(r.get("remap", {})), capabilities=dict(r.get("capabilities", {})),
             extra=r.get("extra"), template_channel=r.get("template_channel"),
             settings=dict(r.get("settings") or {}),
         ))
-    return Fleet(backups_dir=bpath if bpath.is_absolute() else (base / bpath).resolve(),
-                 output_dir=opath if opath.is_absolute() else (base / opath).resolve(),
-                 radios=radios, card_subtitle=str(data.get("card_subtitle", "")))
+    return Fleet(paths=paths, radios=radios, card_subtitle=str(data.get("card_subtitle", "")))
 
 
 def channels_for(plan: Plan, radio: RadioDef) -> list[tuple[int, Channel]]:

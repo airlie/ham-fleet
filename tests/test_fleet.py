@@ -9,7 +9,7 @@ from ham_fleet.validate import validate_plan
 from ham_fleet.rbcheck import check, load_rb
 
 ROOT = Path(__file__).resolve().parent.parent
-DEMO = ROOT / "examples" / "demo"
+DEMO = ROOT / "examples" / "demo" / "config"
 PLAN = load_plan(DEMO / "channels.yaml")
 
 
@@ -134,10 +134,10 @@ def test_neonplug_rebuild_is_idempotent(tmp_path):
     _codeplug(tmp_path, [tmpl, dig], [{"id": "z1", "name": "Mine", "channels": [1, 2]}])
     radio = RadioDef(id="dm32", label="DM32", kind="neonplug", output="out1", tiers=["core"],
                      base="base.neonplug", template_channel="TEMPLATE")
-    r1 = build_neonplug(PLAN, radio, tmp_path, tmp_path)
+    r1 = build_neonplug(PLAN, radio, tmp_path / radio.base, tmp_path)
     cp1 = read_neonplug(tmp_path / "out1.neonplug")
     radio2 = RadioDef(**{**radio.__dict__, "base": "out1.neonplug", "output": "out2"})
-    build_neonplug(PLAN, radio2, tmp_path, tmp_path)
+    build_neonplug(PLAN, radio2, tmp_path / radio2.base, tmp_path)
     cp2 = read_neonplug(tmp_path / "out2.neonplug")
     key = lambda cp: [(c["number"], c["name"], c["rxFrequency"], c["txFrequency"]) for c in cp["channels"]]
     assert key(cp1) == key(cp2)
@@ -158,7 +158,7 @@ def test_neonplug_refuses_unmanaged_channel_after_block(tmp_path):
     radio = RadioDef(id="dm32", label="DM32", kind="neonplug", output="o", tiers=["core"],
                      base="base.neonplug", template_channel="TEMPLATE")
     with pytest.raises(SystemExit, match="not a clean block"):
-        build_neonplug(PLAN, radio, tmp_path, tmp_path)
+        build_neonplug(PLAN, radio, tmp_path / radio.base, tmp_path)
 
 
 @pytest.mark.skipif(not _have_chirp(), reason="CHIRP not available (clone it into vendor/chirp)")
@@ -262,3 +262,72 @@ def test_normalized_setting_errors():
         apply_settings(r, {"key_beep": "off"})
     with pytest.raises(ValueError, match="unknown setting"):
         apply_settings(r, {"made_up": 1})
+
+
+def test_init_where_and_output_layout(tmp_path, capsys):
+    from ham_fleet.cli import main
+    home = tmp_path / "fleet"
+    assert main(["init", str(home)]) == 0
+    for p in ("config/channels.yaml", "config/radios.yaml",
+              "config/templates/field-cards.html", "config/templates/field-cards-mobile.html",
+              "radio-downloads/README.txt"):
+        assert (home / p).exists(), p
+    assert (home / "output").is_dir()
+    assert main(["--home", str(home), "where"]) == 0
+    out = capsys.readouterr().out
+    assert "CONFIG" in out and "RADIO-DOWNLOADS" in out and "OUTPUT" in out and "basic-handheld/" in out
+    if _have_chirp():
+        assert main(["--home", str(home), "build"]) == 0
+        assert (home / "output" / "basic-handheld" / "Basic-Handheld.csv").exists()
+        assert (home / "output" / "channel-map.csv").exists()
+        assert main(["--home", str(home), "build", "--clean", "--only", "basic-handheld"]) == 0
+    assert main(["--home", str(home), "cards"]) == 0
+    assert (home / "output" / "cards" / "Fleet_Field_Cards_Mobile.html").exists()
+
+
+def test_separate_folders_and_paths_block(tmp_path, monkeypatch):
+    from ham_fleet.paths import resolve
+    for v in ("HAM_FLEET_HOME", "HAM_FLEET_CONFIG", "HAM_FLEET_DOWNLOADS", "HAM_FLEET_OUTPUT"):
+        monkeypatch.delenv(v, raising=False)
+    p = resolve(home=str(tmp_path))
+    assert (p.config, p.downloads, p.output) == (tmp_path / "config", tmp_path / "radio-downloads",
+                                                 tmp_path / "output")
+    p = resolve(home=str(tmp_path), file_paths={"downloads": "/srv/radio", "output": "gen"})
+    assert p.downloads == Path("/srv/radio") and p.output == tmp_path / "gen"
+    monkeypatch.setenv("HAM_FLEET_OUTPUT", str(tmp_path / "env-out"))
+    assert resolve(home=str(tmp_path)).output == tmp_path / "env-out"
+    assert resolve(home=str(tmp_path), output=str(tmp_path / "cli")).output == tmp_path / "cli"   # CLI wins
+
+
+def _one_radio_home(tmp_path, radio_yaml):
+    cfg = tmp_path / "config"
+    cfg.mkdir()
+    (cfg / "channels.yaml").write_text((DEMO / "channels.yaml").read_text())
+    (cfg / "radios.yaml").write_text(radio_yaml)
+    return tmp_path
+
+
+def test_where_flags_missing_download(tmp_path, capsys):
+    from ham_fleet.cli import main
+    home = _one_radio_home(tmp_path, "radios:\n  - id: r1\n    kind: chirp-image\n    tiers: [core]\n")
+    assert main(["--home", str(home), "where"]) == 1
+    assert "MISSING  r1/*.img" in capsys.readouterr().out
+
+
+def test_latest_download_by_name_pin_and_extra(tmp_path):
+    import os
+    from ham_fleet.model import load_fleet
+    from ham_fleet.paths import resolve
+    home = _one_radio_home(tmp_path, "radios:\n  - id: r1\n    kind: chirp-image\n    tiers: [core]\n"
+                                     "    extra: {from_image: sats.img, start: 601}\n")
+    d = home / "radio-downloads" / "r1"
+    d.mkdir(parents=True)
+    for n in ("2026-10-01.img", "2026-10-11.img", "sats.img", "notes.txt"):
+        (d / n).write_text("x")
+    os.utime(d / "2026-10-11.img", (1, 1))          # file times don't matter, names do
+    fleet = load_fleet(home / "config" / "radios.yaml", resolve(home=str(home)))
+    r = fleet.radio("r1")
+    assert fleet.base_file(r).name == "2026-10-11.img"
+    assert fleet.extra_file(r).name == "sats.img"
+    r.base = "2026-10-01.img"                        # pinned
+    assert fleet.base_file(r).name == "2026-10-01.img"

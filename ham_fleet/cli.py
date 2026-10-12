@@ -3,33 +3,31 @@ from __future__ import annotations
 
 import argparse
 import csv
-import os
+import shutil
 import sys
+import time
 from pathlib import Path
 
 from . import __version__
-from .model import channels_for, load_fleet, load_plan
+from .model import BASE_EXT, channels_for, load_fleet, load_plan, read_radios_yaml
+from .paths import ROOT, resolve
 from .validate import validate_plan
 
-ROOT = Path(__file__).resolve().parent.parent
 
-
-def config_dir(args) -> Path:
-    """--config, then $HAM_FLEET_CONFIG, then ./my-fleet, then the bundled demo."""
-    for cand in (args.config, os.environ.get("HAM_FLEET_CONFIG")):
-        if cand:
-            return Path(cand).expanduser().resolve()
-    for cand in (Path.cwd() / "my-fleet", ROOT / "my-fleet"):
-        if (cand / "channels.yaml").exists():
-            return cand.resolve()
-    return ROOT / "examples" / "demo"
+def _paths(args):
+    """Resolve config / radio-downloads / output (radios.yaml may hold a `paths:` block)."""
+    first = resolve(args.home, args.config, args.downloads, args.output)
+    radios_file = Path(args.radios) if args.radios else first.radios_file
+    data = read_radios_yaml(radios_file) if radios_file.exists() else {}
+    return resolve(args.home, args.config, args.downloads, args.output, data.get("paths")), radios_file, data
 
 
 def _load(args):
-    cdir = config_dir(args)
-    plan = load_plan(Path(args.channels) if args.channels else cdir / "channels.yaml")
-    fleet = load_fleet(Path(args.radios) if args.radios else cdir / "radios.yaml",
-                       backups=args.backups, output=args.out)
+    paths, radios_file, data = _paths(args)
+    if not paths.channels_file.exists() and not args.channels:
+        raise SystemExit(f"No channels.yaml in {paths.config}. Run `ham-fleet init` or pass --home/--config.")
+    plan = load_plan(Path(args.channels) if args.channels else paths.channels_file)
+    fleet = load_fleet(radios_file, paths, data)
     return plan, fleet
 
 
@@ -43,25 +41,84 @@ def _report(issues, quiet_warn=False) -> int:
 
 
 def cmd_where(args) -> int:
-    cdir = config_dir(args)
-    _, fleet = _load(args)
-    print(f"config:  {cdir}\nbackups: {fleet.backups_dir}\noutput:  {fleet.output_dir}")
-    return 0
+    plan, fleet = _load(args)
+    p = fleet.paths
+    w = max([len(r.id) for r in fleet.radios] + [12]) + 1
+    print(f"home             {p.home}")
+    print(f"\nCONFIG           {p.config}")
+    print(f"  channels.yaml  {len(plan.channels)} channels in {len(plan.groups)} groups")
+    print(f"  radios.yaml    {len(fleet.radios)} radios")
+    for t in ("field-cards.html", "field-cards-mobile.html"):
+        print(f"  templates/{t:<24} {'yours' if (p.templates / t).exists() else 'built-in default'}")
+    print(f"\nRADIO-DOWNLOADS  {p.downloads}{'' if p.downloads.is_dir() else '   (not created yet)'}")
+    print(f"  {'radio':<{w}} build starts from")
+    problems = 0
+    for r in fleet.radios:
+        if r.kind not in BASE_EXT:
+            print(f"  {r.id:<{w}} (nothing needed: {r.kind})")
+            continue
+        f = fleet.base_file(r)
+        if f is None or not f.exists():
+            problems += 1
+            want = r.base or f"*{BASE_EXT[r.kind]}"
+            print(f"  {r.id:<{w}} MISSING  {r.id}/{want}")
+            continue
+        how = "pinned in radios.yaml" if r.base else "latest by name"
+        print(f"  {r.id:<{w}} {r.id}/{f.name}  ({how})")
+        x = fleet.extra_file(r)
+        if x is not None:
+            ok = x.exists()
+            problems += not ok
+            print(f"  {'':<{w}} {'+' if ok else 'MISSING'} {r.id}/{x.name}  (extra)")
+    print(f"\nOUTPUT           {p.output}")
+    for r in fleet.radios:
+        kind = {"neonplug": ".neonplug", "chirp-image": ".img + .csv"}.get(r.kind, ".csv")
+        print(f"  {r.id + '/':<{w + 1}}{r.output}{kind}")
+    print(f"  {'cards/':<{w + 1}}Fleet_Field_Cards.html (.pdf), Fleet_Field_Cards_Mobile.html")
+    print(f"  channel-map.csv  every channel in one table")
+    if problems:
+        print(f"\n{problems} radio download(s) missing: save each radio's download in "
+              f"{p.downloads}/<radio id>/")
+    return 1 if problems else 0
+
+
+DOWNLOADS_README = """Radio downloads: the input for each build. One folder per radio id from radios.yaml:
+
+    radio-downloads/
+      my-uv5r/2026-10-11.img          CHIRP: Radio > Download, then File > Save As
+      dm32/2026-10-11.neonplug        NeonPlug: Export
+
+Each build starts from the LATEST file in the radio's folder, by name (its settings and calibration
+carry over). Name downloads by date (2026-10-11.img) so the latest sorts last, and save a fresh one
+whenever you change something on the radio. Older files stay as history. To use a specific file
+instead, pin it in radios.yaml:  base: 2026-10-01.img
+
+ham-fleet only reads this folder; it never changes or deletes anything here.
+"""
 
 
 def cmd_init(args) -> int:
-    import shutil
-    dest = Path(args.dest).expanduser().resolve()
-    if (dest / "channels.yaml").exists():
-        print(f"{dest} already has a channels.yaml; not overwriting.")
+    home = Path(args.dest).expanduser().resolve()
+    cfg = home / "config"
+    if (cfg / "channels.yaml").exists():
+        print(f"{cfg} already has a channels.yaml; not overwriting.")
         return 1
-    dest.mkdir(parents=True, exist_ok=True)
-    demo = ROOT / "examples" / "demo"
+    demo = ROOT / "examples" / "demo" / "config"
+    (cfg / "templates").mkdir(parents=True, exist_ok=True)
     for f in ("channels.yaml", "radios.yaml"):
-        shutil.copy(demo / f, dest / f)
-    (dest / "templates").mkdir(exist_ok=True)
-    shutil.copy(ROOT / "templates" / "field-cards.html", dest / "templates" / "field-cards.html")
-    print(f"Created {dest} from the demo. Edit channels.yaml and radios.yaml, then run: ham-fleet validate")
+        shutil.copy(demo / f, cfg / f)
+    for t in ("field-cards.html", "field-cards-mobile.html"):
+        shutil.copy(ROOT / "templates" / t, cfg / "templates" / t)
+    (home / "radio-downloads").mkdir(exist_ok=True)
+    (home / "radio-downloads" / "README.txt").write_text(DOWNLOADS_README, encoding="utf-8")
+    (home / "output").mkdir(exist_ok=True)
+    print(f"Created {home}:")
+    print("  config/channels.yaml           your channel plan")
+    print("  config/radios.yaml             your radios")
+    print("  config/templates/              card layouts (optional to edit)")
+    print("  radio-downloads/<radio id>/    save each radio's CHIRP/NeonPlug download here")
+    print("  output/                        generated files")
+    print("Next: ham-fleet where   (checks everything is found)")
     return 0
 
 
@@ -74,7 +131,10 @@ def cmd_settings(args) -> int:
         print(f"{r.id} is {r.kind}; settings are only managed for chirp-image radios")
         return 1
     directory, _, _ = chirp()
-    path = Path(args.image) if args.image else fleet.backups_dir / r.base
+    path = Path(args.image) if args.image else fleet.base_file(r)
+    if path is None or not path.exists():
+        print(f"No radio download for {r.id}: save one in radio-downloads/{r.id}/ or pass --image")
+        return 1
     radio = directory.get_radio_by_image(str(path))
     print(f"{r.id}: {radio.VENDOR} {radio.MODEL}  ({path.name})\n")
     flt = (args.filter or "").lower()
@@ -125,12 +185,21 @@ def cmd_build(args) -> int:
         print("Fix the errors above before building.")
         return 1
     radios = [fleet.radio(x) for x in args.only] if args.only else fleet.radios
-    print(f"backups: {fleet.backups_dir}\noutput:  {fleet.output_dir}\n")
+    print(f"config: {fleet.paths.config}\noutput: {fleet.output_dir}\n")
+    if args.clean and not args.dry_run:
+        _clean(fleet, radios)
     for r in radios:
+        out = fleet.radio_out(r)
         if r.kind in ("chirp-image", "chirp-csv"):
-            res = build_chirp(plan, r, fleet.backups_dir, fleet.output_dir, dry_run=args.dry_run)
+            src = fleet.base_file(r)
+            if src is not None and src.exists():
+                print(f"{r.id}: from radio-downloads/{r.id}/{src.name}")
+            res = build_chirp(plan, r, src, out, dry_run=args.dry_run, extra_src=fleet.extra_file(r))
         elif r.kind == "neonplug":
-            res = build_neonplug(plan, r, fleet.backups_dir, fleet.output_dir, dry_run=args.dry_run)
+            src = fleet.base_file(r)
+            if src is not None and src.exists():
+                print(f"{r.id}: from radio-downloads/{r.id}/{src.name}")
+            res = build_neonplug(plan, r, src, out, dry_run=args.dry_run)
         else:
             print(f"{r.id}: unknown kind '{r.kind}'")
             return 1
@@ -141,11 +210,27 @@ def cmd_build(args) -> int:
             for s in res.skipped:
                 print(f"    skipped {s}")
         for f in res.files:
-            print(f"    -> {f.name}")
+            print(f"    -> {f.relative_to(fleet.output_dir)}")
     if not args.dry_run and not args.only:
-        _master_csv(plan, fleet.output_dir / "Master_Channel_Map.csv")
-        print("    -> Master_Channel_Map.csv")
+        _master_csv(plan, fleet.output_dir / "channel-map.csv")
+        print("    -> channel-map.csv")
     return 0
+
+
+GENERATED = {".img", ".csv", ".neonplug", ".html", ".pdf"}
+
+
+def _clean(fleet, radios) -> None:
+    """Remove previously generated files (only known output types, only inside the output folder)."""
+    n = 0
+    for r in radios:
+        d = fleet.radio_out(r)
+        if d.is_dir():
+            for f in d.iterdir():
+                if f.is_file() and f.suffix in GENERATED:
+                    f.unlink()
+                    n += 1
+    print(f"cleaned {n} old file(s)\n")
 
 
 def _master_csv(plan, path: Path) -> None:
@@ -163,17 +248,17 @@ def _master_csv(plan, path: Path) -> None:
 def cmd_cards(args) -> int:
     from .cards import write_cards, write_mobile
     plan, fleet = _load(args)
-    tdir = config_dir(args) / "templates"
+    tdir = fleet.paths.templates
     tpl = tdir / "field-cards.html"
     mtpl = tdir / "field-cards-mobile.html"
     air = None
     for r in fleet.radios:
         if "aviation" in r.remap:
             air = int(r.remap["aviation"])
-    for f in write_cards(plan, fleet.output_dir, pdf=args.pdf, tdh3_air_start=air,
+    for f in write_cards(plan, fleet.cards_out, pdf=args.pdf, tdh3_air_start=air,
                          template=tpl if tpl.exists() else None):
         print(f"-> {f}")
-    m = write_mobile(plan, fleet.output_dir, subtitle=fleet.card_subtitle, tdh3_air_start=air,
+    m = write_mobile(plan, fleet.cards_out, subtitle=fleet.card_subtitle, tdh3_air_start=air,
                      template=mtpl if mtpl.exists() else None,
                      desktop_template=tpl if tpl.exists() else None)
     print(f"-> {m}")
@@ -194,23 +279,27 @@ def cmd_rbcheck(args) -> int:
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="ham-fleet", description=__doc__)
     p.add_argument("--version", action="version", version=f"ham-fleet {__version__}")
-    p.add_argument("--config", help="config folder with channels.yaml and radios.yaml "
-                   "(default: $HAM_FLEET_CONFIG, ./my-fleet, else the bundled demo)")
-    p.add_argument("--channels", help="channel list (overrides <config>/channels.yaml)")
-    p.add_argument("--radios", help="fleet definition (overrides <config>/radios.yaml)")
-    p.add_argument("--backups", help="folder with radio backups (overrides radios.yaml / $FLEET_BACKUPS)")
-    p.add_argument("--out", help="output folder (overrides radios.yaml)")
+    p.add_argument("--home", help="folder holding config/, radio-downloads/ and output/ "
+                   "(default: $HAM_FLEET_HOME, ./my-fleet, else the bundled demo)")
+    p.add_argument("--config", help="config folder (default: $HAM_FLEET_CONFIG or <home>/config)")
+    p.add_argument("--downloads", help="radio downloads folder (default: $HAM_FLEET_DOWNLOADS or <home>/radio-downloads)")
+    p.add_argument("--output", "--out", dest="output",
+                   help="output folder (default: $HAM_FLEET_OUTPUT or <home>/output)")
+    p.add_argument("--channels", help="use this channels.yaml instead of <config>/channels.yaml")
+    p.add_argument("--radios", help="use this radios.yaml instead of <config>/radios.yaml")
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    s = sub.add_parser("init", help="create a personal config folder from the demo")
+    s = sub.add_parser("init", help="create config/, radio-downloads/ and output/ from the demo")
     s.add_argument("dest", nargs="?", default="my-fleet")
     s.set_defaults(fn=cmd_init)
 
-    sub.add_parser("where", help="show which config folder is in use").set_defaults(fn=cmd_where)
+    sub.add_parser("where", help="show the folders and which radio download each build will use")\
+        .set_defaults(fn=cmd_where)
+
     s = sub.add_parser("settings", help="list the settings you can use for a radio in radios.yaml")
     s.add_argument("radio")
     s.add_argument("filter", nargs="?", help="only names/labels containing this text, e.g. voice")
-    s.add_argument("--image", help="read this image instead of the radio's base backup")
+    s.add_argument("--image", help="read this image instead of the radio's latest download")
     s.add_argument("--raw", action="store_true", help="list every CHIRP setting with its driver-specific name")
     s.set_defaults(fn=cmd_settings)
 
@@ -224,6 +313,7 @@ def main(argv=None) -> int:
     s.add_argument("--only", nargs="+", metavar="RADIO", help="build just these radio ids")
     s.add_argument("--dry-run", action="store_true", help="show what would be written")
     s.add_argument("-v", "--verbose", action="store_true", help="list skipped channels")
+    s.add_argument("--clean", action="store_true", help="delete old generated files for these radios first")
     s.set_defaults(fn=cmd_build)
 
     s = sub.add_parser("cards", help="build the printable channel card and the phone version")

@@ -11,5 +11,5 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: git clone --depth 1 https://github.com/kk7ds/chirp.git vendor/chirp
       - run: pytest -q
-      - run: ham-fleet --config examples/demo validate
-      - run: ham-fleet --config examples/demo build
+      - run: ham-fleet --home examples/demo validate
+      - run: ham-fleet --home examples/demo build
